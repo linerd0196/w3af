@@ -147,7 +147,11 @@ class Info(dict):
         owasp_top_10_references = None
 
         for k, v in self.iteritems():
-            attributes[str(k)] = str(v)
+            try:
+                attributes[str(k)] = str(v)
+            except UnicodeEncodeError:
+                attributes[str(k)] = v.encode("utf-8")
+
 
         if self.has_db_details():
             long_description = self.get_long_description()
