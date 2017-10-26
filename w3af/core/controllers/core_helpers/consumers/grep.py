@@ -19,7 +19,7 @@ along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 """
-import time
+import time, Queue
 
 import w3af.core.data.kb.config as cf
 
@@ -65,29 +65,23 @@ class grep(BaseConsumer):
         Consume the queue items
         """
         while True:
-
             try:
-                work_unit = self.in_queue.get()
+                work_unit = self.in_queue.get(timeout=1)
             except KeyboardInterrupt:
-                # https://github.com/andresriancho/w3af/issues/9587
-                #
-                # If we don't do this, the thread will die and will never
-                # process the POISON_PILL, which will end up in an endless
-                # wait for .join()
+                continue
+            except Queue.Empty:
                 continue
 
             if work_unit == POISON_PILL:
-                try:
-                    self._teardown()
-                finally:
-                    self.in_queue.task_done()
-                    break
+                self.in_queue.task_done()
+                break
 
             else:
                 try:
                     self._consume(work_unit)
                 finally:
                     self.in_queue.task_done()
+        self.join()
 
     def _teardown(self):
         """

@@ -26,9 +26,12 @@ import w3af.core.controllers.output_manager as om
 from w3af.core.controllers.misc.epoch_to_string import epoch_to_string
 from w3af.core.controllers.misc.number_generator import consecutive_number_generator
 
-PAUSED = 'Paused'
-STOPPED = 'Stopped'
+IDLE = 'Idle'
+INITIALIZING = 'Initializing'
 RUNNING = 'Running'
+PAUSED = 'Paused'
+STOPPING = 'Stopping'
+STOPPED = 'Stopped'
 
 
 class w3af_core_status(object):
@@ -42,7 +45,8 @@ class w3af_core_status(object):
         self._w3af_core = w3af_core
         
         # Init some internal values
-        self._is_running = False
+        self._current_status = IDLE
+        self._prev_status = IDLE
         self._paused = False
         self._start_time_epoch = None
         self.scans_completed = scans_completed
@@ -56,30 +60,48 @@ class w3af_core_status(object):
         # where a phase means crawl/audit
         self._current_fuzzable_request = {}
 
+    def is_paused(self):
+        return self._current_status == PAUSED
+
+    def is_running(self):
+        return self._current_status == RUNNING
+
+    def is_stopping(self):
+        return self._current_status == STOPPING
+
+    def is_stopped(self):
+        return self._current_status == STOPPED
+
+    def _set_status(self, status):
+        if self._current_status != status:
+            self._prev_status, self._current_status = self._current_status, status
+
     def pause(self, pause_yes_no):
-        self._paused = pause_yes_no
-        self._is_running = not pause_yes_no
-        om.out.debug('The user paused/unpaused the scan.')
+        if pause_yes_no:
+            om.out.debug('The user paused the scan.')
+            self._set_status(self._prev_status)
+        elif self.is_paused():
+            om.out.debug('The user unpaused the scan.')
+            self._set_status(self._prev_status)
+
+    def initialize(self):
+        self._set_status(INITIALIZING)
 
     def start(self):
-        self._is_running = True
+        self._set_status(RUNNING)
         self._start_time_epoch = time.time()
 
-    def stop(self):
-        # Now I'm definitely not running:
-        self._is_running = False
+    def stop(self, stopped=False):
+        if stopped:
+            self._set_status(STOPPED)
+        else:
+            self._set_status(STOPPING)
 
     def get_status(self):
         """
         :return: A string representing the current w3af core status.
         """
-        if self._paused:
-            return PAUSED
-        
-        elif not self.is_running():
-            return STOPPED
-        
-        else:
+        if self.is_running():
             crawl_plugin = self.get_running_plugin('crawl')
             audit_plugin = self.get_running_plugin('audit')
             
@@ -103,6 +125,8 @@ class w3af_core_status(object):
                 
             status_str = status_str.replace('\x00', '')
             return status_str
+        else:
+            return self._current_status
 
     def set_running_plugin(self, plugin_type, plugin_name, log=True):
         """
@@ -127,16 +151,6 @@ class w3af_core_status(object):
                  plugin reported using set_running_plugin.
         """
         return self._latest_ptype, self._latest_pname
-
-    def is_running(self):
-        """
-        :return: If the user has called start, and then wants to know if the
-        core is still working, it should call is_running() to know that.
-        """
-        return self._is_running
-    
-    def is_paused(self):
-        return self._paused
     
     def get_run_time(self):
         """
@@ -171,7 +185,7 @@ class w3af_core_status(object):
         return int(consecutive_number_generator.get() / run_time)
     
     def scan_finished(self):
-        self._is_running = False
+        self._set_status(STOPPED)
         self._running_plugin = {}
         self._current_fuzzable_request = {}
         self.scans_completed += 1
@@ -282,13 +296,7 @@ class w3af_core_status(object):
         """
         :return: The status as a very simple string
         """
-        if self.is_paused():
-            return PAUSED
-
-        elif not self.is_running():
-            return STOPPED
-
-        return RUNNING
+        return self._current_status
 
     def get_status_as_dict(self):
         """

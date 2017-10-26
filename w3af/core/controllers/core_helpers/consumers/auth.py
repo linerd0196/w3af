@@ -67,10 +67,6 @@ class auth(BaseConsumer):
             else:
 
                 if action == POISON_PILL:
-
-                    for plugin in self._consumer_plugins:
-                        plugin.end()
-
                     self.in_queue.task_done()
                     break
 
@@ -81,6 +77,11 @@ class auth(BaseConsumer):
                     finally:
                         self.in_queue.task_done()
                     # pylint: enable=E1120
+        self.join()
+
+    def _teardown(self):
+        for plugin in self._consumer_plugins:
+            plugin.end()
 
     # Adding task here because we want to let the rest of the world know
     # that we're still doing something. The _task_done below will "undo"

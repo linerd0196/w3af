@@ -139,7 +139,6 @@ class CoreProfiles(object):
 
         # Set the target settings of the profile to the core
         self._w3af_core.target.set_options(profile_inst.get_target())
-
         # Set the misc and http settings
         try:
             profile_misc_settings = profile_inst.get_misc_settings()

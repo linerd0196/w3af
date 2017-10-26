@@ -117,40 +117,23 @@ class CoreStrategy(object):
             self._setup_404_detection()
 
             self._seed_discovery()
-
             self._fuzzable_request_router()
 
         except Exception, e:
-
             om.out.debug('strategy.start() found exception "%s"' % e)
-            exc_info = sys.exc_info()
-
-            try:
-                # Terminate the consumers, exceptions at this level stop the
-                # scan
-                self.terminate()
-
-                # While the consumers might have finished, they certainly queue
-                # tasks in the core's worker_pool, which need to be processed
-                # too
-                self._w3af_core.worker_pool.finish()
-            except Exception, e:
-                msg = ('strategy.start() found exception while terminating'
-                       ' workers "%s"')
-                om.out.debug(msg % e)
-
-            raise exc_info[0], exc_info[1], exc_info[2]
-
-        else:
-            # Wait for all consumers to finish
-            self.join_all_consumers()
-
-            # While the consumers might have finished, they certainly queue
-            # tasks in the core's worker_pool, which need to be processed too
-            self._w3af_core.worker_pool.finish()
+            raise
 
     def stop(self):
-        self.terminate()
+        self._w3af_core.status.stop(stopped=False)
+        self._w3af_core.uri_opener.stop()
+        self._stop_consumers()
+
+    def _stop_consumers(self):
+        consumers = {'discovery', 'audit', 'auth', 'bruteforce', 'grep'}
+        for consumer in consumers:
+            consumer_inst = getattr(self, '_%s_consumer' % consumer)
+            if consumer_inst is not None:
+                consumer_inst.stop()
         
     def pause(self, pause_yes_no):
         # FIXME: Consumers should have something to do with this, most likely
@@ -176,10 +159,10 @@ class CoreStrategy(object):
                 # The getattr/setattr tricks are required to make sure that "the
                 # real consumer instance" is set to None. Do not modify unless
                 # you know what you're doing!
-                setattr(self, '_%s_consumer' % consumer, None)
-
+                # setattr(self, '_%s_consumer' % consumer, None)
                 consumer_inst.terminate()
 
+        self.join_all_consumers()
         self.set_consumers_to_none()
 
     def join_all_consumers(self):

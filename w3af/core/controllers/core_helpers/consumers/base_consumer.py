@@ -108,9 +108,8 @@ class BaseConsumer(Process):
         going to find vulnerabilities, new URLs, etc.
         """
         while True:
-
             try:
-                work_unit = self.in_queue.get()
+                work_unit = self.in_queue.get(timeout=1)
             except KeyboardInterrupt:
                 # https://github.com/andresriancho/w3af/issues/9587
                 #
@@ -118,19 +117,12 @@ class BaseConsumer(Process):
                 # process the POISON_PILL, which will end up in an endless
                 # wait for .join()
                 continue
+            except Queue.Empty:
+                continue
 
             if work_unit == POISON_PILL:
-
-                # Close the pool and wait for everyone to finish
-                self._threadpool.close()
-                self._threadpool.join()
-                del self._threadpool
-
-                self._teardown()
-
-                # Finish this consumer and everyone consuming the output
-                self._out_queue.put(POISON_PILL)
                 self.in_queue.task_done()
+                self._out_queue.put(POISON_PILL)
                 break
 
             else:
@@ -139,6 +131,7 @@ class BaseConsumer(Process):
                     self._consume_wrapper(work_unit)
                 finally:
                     self.in_queue.task_done()
+        self.join()
 
     def _teardown(self):
         raise NotImplementedError
@@ -249,17 +242,22 @@ class BaseConsumer(Process):
         Poison the loop and wait for all queued work to finish this might take
         some time to process.
         """
-        if not self.is_alive():
-            # This return has a long history, follow it here:
-            # https://github.com/andresriancho/w3af/issues/1172
-            return
-
-        if not self._poison_pill_sent:
-            # https://github.com/andresriancho/w3af/issues/9587
-            self._poison_pill_sent = True
-            self.in_queue_put(POISON_PILL)
-
         self.in_queue.join()
+        if self._threadpool:
+            self._threadpool.terminate_join()
+
+    def stop(self):
+        # Consume all items currently on the queue
+        # Then send POISON PILL
+        while True:
+            try:
+                self.in_queue.get_nowait()
+            except Queue.Empty:
+                break
+            else:
+                self.in_queue.task_done()
+        self.in_queue_put(POISON_PILL)
+        self._poison_pill_sent = True
 
     def terminate(self):
         """
@@ -267,11 +265,8 @@ class BaseConsumer(Process):
         exits. Should be very fast and called only if we don't care about the
         queued work anymore (ie. user clicked stop in the UI).
         """
-        while not self.in_queue.empty():
-            self.in_queue.get()
-            self.in_queue.task_done()
-        
         self.join()
+        self._teardown()
 
     def get_result(self, timeout=0.5):
         """

@@ -76,7 +76,7 @@ class crawl_infrastructure(BaseConsumer):
         while True:
 
             try:
-                work_unit = self.in_queue.get(timeout=0.1)
+                work_unit = self.in_queue.get(timeout=1)
             except KeyboardInterrupt:
                 # https://github.com/andresriancho/w3af/issues/9587
                 #
@@ -94,17 +94,9 @@ class crawl_infrastructure(BaseConsumer):
                 # pylint: enable=E1120
             else:
                 if work_unit == POISON_PILL:
-
-                    # Close the pool and wait for everyone to finish
-                    self._threadpool.close()
-                    self._threadpool.join()
-                    del self._threadpool
-                    self._running = False
-                    self._teardown()
-
-                    # Finish this consumer and everyone consuming the output
-                    self._out_queue.put(POISON_PILL)
                     self.in_queue.task_done()
+                    self._running = False
+                    self._out_queue.put(POISON_PILL)
                     break
 
                 else:
@@ -119,6 +111,7 @@ class crawl_infrastructure(BaseConsumer):
                         self.in_queue.task_done()
 
                     work_unit = None
+        self.join()
 
     def _teardown(self, plugin=None):
         """
@@ -237,25 +230,19 @@ class crawl_infrastructure(BaseConsumer):
                 # terminate() to clear the input queue and put a POISON_PILL
                 # in the output queue
                 if self._should_stop_discovery():
-                    self._running = False
-                    self._force_end()
+                    self.stop()
                     break
 
-    def _force_end(self):
+    def stop(self):
         """
         I had to create this method in order to be able to quickly end the
         discovery phase from within the same thread.
         """
-        # Clear all items in the input queue so no more work is performed
-        while not self.in_queue.empty():
-            self.in_queue.get()
-            self.in_queue.task_done()
+        self._running = False
+        BaseConsumer.stop(self)
 
-        # Let the client know that I finished
-        self.out_queue.put(POISON_PILL)
-
-    def join(self):
-        super(crawl_infrastructure, self).join()
+    def terminate(self):
+        BaseConsumer.terminate(self)
         self.cleanup()
         self.show_summary()
 
