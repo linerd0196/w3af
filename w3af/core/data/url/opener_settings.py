@@ -97,6 +97,7 @@ class OpenerSettings(Configurable):
     def set_default_values(self):
         cfg.save('configured_timeout', 0)
         cfg.save('headers_file', '')
+        cfg.save('headers_json', '')
         cfg.save('cookie_jar_file', '')
         cfg.save('user_agent', 'w3af.org')
         cfg.save('rand_user_agent', False)
@@ -154,6 +155,24 @@ class OpenerSettings(Configurable):
 
         self.set_header_list(header_list)
         cfg.save('headers_file', headers_file)
+
+    def set_headers_json(self, headers_json):
+        if not headers_json:
+            return
+
+        try:
+            headers = json.loads(headers_json)
+            assert isinstance(headers, dict) 
+        except (ValueError, AssertionError):
+            msg = 'Invalid json: "%s"'%(headers_json)
+            raise BaseFrameworkException(msg)
+
+        header_list = []
+        for header_name, header_value in headers.iteritems():
+            header_list.append((header_name, header_value))
+
+        self.set_header_list(header_list)
+        cfg.save('headers_json', headers_json)
 
     def set_header_list(self, header_list):
         """
@@ -475,6 +494,11 @@ class OpenerSettings(Configurable):
         o = opt_factory('headers_file', cfg.get('headers_file'), d, STRING)
         ol.add(o)
         
+        d = 'HTTP headers in json format, which contains additional headers to be' \
+            ' added in each request'
+        o = opt_factory('headers_json', cfg.get('headers_json'), d, STRING)
+        ol.add(o)
+        
         d = 'Basic authentication username'
         o = opt_factory('basic_auth_user', cfg.get('basic_auth_user'), d,
                         STRING, tabid='Basic HTTP Authentication')
@@ -666,6 +690,7 @@ class OpenerSettings(Configurable):
 
         self.set_cookie_jar_file(get_opt_value('cookie_jar_file'))
         self.set_headers_file(get_opt_value('headers_file'))
+        self.set_headers_json(get_opt_value('headers_json'))
         self.set_user_agent(get_opt_value('user_agent'))
         self.set_rand_user_agent(get_opt_value('rand_user_agent'))
         cfg['ignore_session_cookies'] = get_opt_value('ignore_session_cookies')
