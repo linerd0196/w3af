@@ -54,6 +54,7 @@ from w3af.core.controllers.misc.homeDir import (create_home_dir,
 from w3af.core.controllers.misc.temp_dir import (create_temp_dir,
                                                  remove_temp_dir,
                                                  TEMP_DIR)
+from w3af.core.controllers.misc.decorators import runonce
 from w3af.core.controllers.exceptions import (BaseFrameworkException,
                                               HTTPRequestException,
                                               ScanMustStopException,
@@ -205,7 +206,6 @@ class w3afCore(object):
         except MemoryError:
             print(NO_MEMORY_MSG)
             om.out.error(NO_MEMORY_MSG)
-            self.strategy.stop()
 
         except OSError, os_err:
             # https://github.com/andresriancho/w3af/issues/10186
@@ -215,7 +215,6 @@ class w3afCore(object):
                 om.out.error(NO_MEMORY_MSG)
             else:
                 raise
-            self.strategy.stop()
 
         except IOError as (error_id, error_msg):
             # https://github.com/andresriancho/w3af/issues/9653
@@ -230,7 +229,6 @@ class w3afCore(object):
                 om.out.error(msg)
             else:
                 raise
-            self.strategy.stop()
 
         except threading.ThreadError, te:
             handle_threading_error(self.status.scans_completed, te)
@@ -241,7 +239,6 @@ class w3afCore(object):
             #       adding the exception handler to raise them and fix any
             #       instances where it happens.
             raise
-            self.strategy.stop()
 
         except ScanMustStopByUserRequest, sbur:
             # I don't have to do anything here, since the user is the one that
@@ -258,7 +255,6 @@ class w3afCore(object):
             # tracker
             #
             raise
-            self.strategy.stop()
 
         except ScanMustStopException, wmse:
             error = ('The following error was detected and could not be'
@@ -269,10 +265,10 @@ class w3afCore(object):
         except Exception, e:
             msg = 'Unhandled exception "%s", traceback:\n%s'
             om.out.error(msg % (e, traceback.format_exc()))
-            self.strategy.stop()
             raise
 
         finally:
+            self.stop()
             self.strategy.terminate()
             self.scan_end_hook()
 
@@ -350,6 +346,7 @@ class w3afCore(object):
     def can_stop(self):
         return self.status.get_simplified_status() in (RUNNING, PAUSED)
 
+    @runonce(exc_class=None)
     def stop(self):
         """
         This method is called by the user interface layer, when the user

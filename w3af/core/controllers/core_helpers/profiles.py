@@ -119,6 +119,7 @@ class CoreProfiles(object):
                                        problem, or the plugins are incorrectly
                                        configured.
         """
+
         error_messages = []
 
         # Clear all the current configuration before loading a new profile

@@ -46,7 +46,8 @@ def runonce(exc_class=Exception):
             if not getattr(self, '_already_executed', False):
                 self._already_executed = True
                 return meth(self, *args)
-            raise exc_class()
+            if exc_class:
+                raise exc_class()
         return inner_runonce_meth
     
     return runonce_meth

@@ -42,3 +42,4 @@ class ScanInfo(object):
 
         if self.output is not None:
             self.output.cleanup()
+        self.w3af_core.quit()

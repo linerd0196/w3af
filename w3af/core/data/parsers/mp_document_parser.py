@@ -56,7 +56,12 @@ class MultiProcessingDocumentParser(object):
     :author: Andres Riancho (andres.riancho@gmail.com)
     """
     DEBUG = core_profiling_is_enabled()
-    MAX_WORKERS = 2 if is_running_on_ci() else (multiprocessing.cpu_count() / 2) or 1
+    # MAX_WORKERS = 2 if is_running_on_ci() else (multiprocessing.cpu_count() / 2) or 1
+    
+    #
+    # We only use timeout feature. So creating too many workers is not useful
+    #
+    MAX_WORKERS = 1
 
     # Increasing the timeout when profiling is enabled seems to fix issue #9713
     #
@@ -66,7 +71,12 @@ class MultiProcessingDocumentParser(object):
                          user_wants_cpu_profiling())
 
     # in seconds
-    PARSER_TIMEOUT = 60 * 3 if PROFILING_ENABLED else 10
+    # PARSER_TIMEOUT = 60 * 3 if PROFILING_ENABLED else 10
+    
+    #
+    # Reduce timeout
+    #
+    PARSER_TIMEOUT = 5
 
     def __init__(self):
         self._pool = None
