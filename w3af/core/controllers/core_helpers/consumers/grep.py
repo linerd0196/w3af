@@ -64,6 +64,8 @@ class grep(BaseConsumer):
         """
         Consume the queue items
         """
+        import prctl
+        prctl.set_name("csm_%s"%(self.__class__.__name__))
         while True:
             try:
                 work_unit = self.in_queue.get(timeout=1)
@@ -107,6 +109,8 @@ class grep(BaseConsumer):
         # threads. This is because it makes no sense (these are all CPU
         # bound).
         for plugin in self._consumer_plugins:
+            import prctl
+            prctl.set_name("grep_%s"%(plugin.get_name()))
             args = (plugin.get_name(), request.get_uri())
             om.out.debug('%s.grep(%s)' % args)
 

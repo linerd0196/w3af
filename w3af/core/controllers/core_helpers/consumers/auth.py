@@ -49,6 +49,8 @@ class auth(BaseConsumer):
         """
         Consume the queue items
         """
+        import prctl
+        prctl.set_name("csm_%s"%(self.__class__.__name__))
         while True:
 
             try:

@@ -54,5 +54,7 @@ def main():
     except socket.error, se:
         print('Failed to start REST API server: %s' % se.strerror)
         return 1
-
-    return 0
+    
+    if hasattr(app, "restart") and app.restart == True:
+        return 0
+    return 1

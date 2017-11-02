@@ -132,6 +132,8 @@ class audit(BaseConsumer):
         Python 3 has an error_callback in the apply_async method, which we could
         use in the future.
         """
+        import prctl
+        prctl.set_name("audit_%s"%(plugin.get_name()))
         args = (plugin.get_name(), fuzzable_request.get_uri())
         om.out.debug('%s.audit(%s)' % args)
 

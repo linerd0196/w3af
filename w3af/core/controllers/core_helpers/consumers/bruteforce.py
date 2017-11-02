@@ -95,6 +95,8 @@ class bruteforce(BaseConsumer):
                                  bruteforced by @plugin.
         :return: A list of the URL's that have been successfully bruteforced
         """
+        import prctl
+        prctl.set_name("brtf_%s"%(plugin.get_name()))
         res = set()
 
         # Logging

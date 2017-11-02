@@ -107,6 +107,8 @@ class BaseConsumer(Process):
         Consume the queue items, sending them to the plugins which are then
         going to find vulnerabilities, new URLs, etc.
         """
+        import prctl
+        prctl.set_name("csm_%s"%(self.__class__.__name__))
         while True:
             try:
                 work_unit = self.in_queue.get(timeout=1)

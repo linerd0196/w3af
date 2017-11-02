@@ -73,6 +73,8 @@ class crawl_infrastructure(BaseConsumer):
         Consume the queue items, sending them to the plugins which are then
         going to find vulnerabilities, new URLs, etc.
         """
+        import prctl
+        prctl.set_name("csm_%s"%(self.__class__.__name__))
         while True:
 
             try:
@@ -438,6 +440,8 @@ class crawl_infrastructure(BaseConsumer):
 
         :return: A list with the newly found fuzzable requests.
         """
+        import prctl
+        prctl.set_name("dis_%s"%(plugin.get_name()))
         args = (plugin.get_name(), fuzzable_request.get_uri())
         om.out.debug('%s.discover(%s)' % args)
 
